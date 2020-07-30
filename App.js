@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, StyleSheet, Platform, Text, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Sharing from 'expo-sharing'; 
+import uploadToAnonymousFilesAsync from 'anonymous-files';
 
 export default function App() {
   const [selectImage, setSelectImage] = useState(null);
@@ -18,9 +20,23 @@ export default function App() {
     if (pickerResult.cancelled === true) {
       return;
     }
-    setSelectImage({ localUri: pickerResult.uri });
-    console.log(pickerResult);
+
+    if (Platform.OS === 'web') {
+      let remoteUri = await uploadToAnonymousFilesAsync(pickerResult.uri);
+      setSelectImage({ localUri: pickerResult.uri, remoteUri });
+    } else {
+      setSelectImage({ localUri: pickerResult.uri, remoteUri: null });
+    }
   };
+
+
+  let openShareDialogAsync = async() => {
+    if (!(await Sharing.isAvailableAsync())) {
+      alert(`The image is available for sharing at: ${selectImage.remoteUri}`);
+      return;
+    }
+    await Sharing.shareAsync(selectImage.localUri);
+  }
 
   if (selectImage !== null) {
     return(
@@ -29,6 +45,9 @@ export default function App() {
           source={{uri: selectImage.localUri}}
           style={styles.thumbnail}
         />
+        <TouchableOpacity onPress={openShareDialogAsync} style={styles.button} >
+          <Text style={styles.buttonText} > Share this photo </Text>
+        </TouchableOpacity>
       </View>
     );
   }
